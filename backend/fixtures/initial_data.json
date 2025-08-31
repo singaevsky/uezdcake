@@ -1,0 +1,41 @@
+[
+  {
+    "model": "products.filling",
+    "pk": 1,
+    "fields": {
+      "name": "Шоколадная с арахисом и карамелью",
+      "price": "150.00",
+      "is_available": true
+    }
+  },
+  {
+    "model": "products.filling",
+    "pk": 2,
+    "fields": {
+      "name": "Творожно-ягодная",
+      "price": "120.00",
+      "is_available": true
+    }
+  },
+  {
+    "model": "products.filling",
+    "pk": 3,
+    "fields": {
+      "name": "Ванильная с фруктами",
+      "price": "100.00",
+      "is_available": true
+    }
+  },
+  {
+    "model": "products.product",
+    "pk": 1,
+    "fields": {
+      "name": "Медовик",
+      "description": "Классический медовый торт с кремом",
+      "type": "cake",
+      "base_price": "1200.00",
+      "image": "products/medovik.jpg",
+      "is_available": true
+    }
+  }
+]

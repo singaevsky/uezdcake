@@ -2,32 +2,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  // swcMinify может вызывать проблемы в некоторых версиях, убираем
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-      },
-      {
-        source: '/ws/:path*',
-        destination: `${process.env.NEXT_PUBLIC_WS_URL}/:path*`,
-      },
-    ];
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws',
   },
   images: {
     domains: ['res.cloudinary.com', 'localhost'],
   },
-  webpack(config) {
-    config.module.rules.push({
-      test: /\.svg$/,
-      use: ['@svgr/webpack'],
-    });
-    return config;
+  // Убираем rewrites для WebSocket, так как это не поддерживается напрямую
+  // и полагаемся на клиентские соединения напрямую
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiUrl}/:path*`,
+      },
+    ];
   },
 };
 

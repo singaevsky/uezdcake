@@ -1,7 +1,11 @@
-// lib/firebase.ts
+// frontend/lib/firebase.ts
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
+// Проверяем, что мы в браузерной среде
+const isBrowser = typeof window !== 'undefined';
+
+// Конфигурация Firebase
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,15 +16,31 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+// Инициализация Firebase только в браузере
+let app: any = null;
+let messaging: any = null;
 
-export const requestNotificationPermission = async () => {
-  if (!messaging) return null;
+if (isBrowser && firebaseConfig.apiKey) {
+  try {
+    app = initializeApp(firebaseConfig);
+    messaging = getMessaging(app);
+  } catch (error) {
+    console.warn('Ошибка инициализации Firebase:', error);
+  }
+}
+
+export const requestNotificationPermission = async (): Promise<string | null> => {
+  // Если Firebase не инициализирован или мы не в браузере
+  if (!messaging || !isBrowser) {
+    console.log('Firebase messaging не доступен');
+    return null;
+  }
 
   try {
+    // Запрашиваем разрешение на уведомления
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
+      // Получаем токен для push-уведомлений
       const token = await getToken(messaging, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
       });
@@ -28,19 +48,31 @@ export const requestNotificationPermission = async () => {
     }
     return null;
   } catch (error) {
-    console.error('Ошибка получения токена:', error);
+    console.error('Ошибка получения токена Firebase:', error);
     return null;
   }
 };
 
 export const onMessageListener = () =>
   new Promise((resolve) => {
-    if (messaging) {
+    // Если Firebase не инициализирован
+    if (!messaging) {
+      console.log('Firebase messaging не доступен для прослушивания сообщений');
+      resolve(null);
+      return;
+    }
+
+    try {
+      // Слушаем входящие сообщения
       onMessage(messaging, (payload) => {
+        console.log('Получено сообщение Firebase:', payload);
         resolve(payload);
       });
+    } catch (error) {
+      console.error('Ошибка при подписке на сообщения:', error);
+      resolve(null);
     }
   });
 
-// Сервис-воркер для push-уведомлений
-// public/firebase-messaging-sw.js
+// Экспортируем для возможного использования в других частях приложения
+export { app, messaging };

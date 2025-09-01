@@ -10,21 +10,21 @@ body {
 
 /* Улучшенные кнопки */
 .btn-primary {
-  @apply bg-chocolate hover:bg-dark-chocolate text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-0.5;
+  @apply bg-chocolate hover:bg-dark-chocolate text-white font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-chocolate focus:ring-opacity-50;
 }
 
 .btn-secondary {
-  @apply bg-gold hover:bg-opacity-90 text-chocolate font-bold py-2 px-4 rounded-full transition duration-300;
+  @apply bg-gold hover:bg-opacity-90 text-chocolate font-bold py-2 px-4 rounded-full transition duration-300 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-opacity-50;
 }
 
 /* Карточки товаров */
 .product-card {
-  @apply bg-white rounded-xl shadow-md overflow-hidden transition duration-300 ease-in-out transform hover:shadow-lg hover:-translate-y-1;
+  @apply bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 ease-in-out transform hover:shadow-lg hover:-translate-y-1;
 }
 
 /* Навигация */
 .nav-link {
-  @apply px-3 py-2 rounded-md text-sm font-medium hover:bg-rose-100 transition-colors;
+  @apply px-3 py-2 rounded-md text-sm font-medium hover:bg-rose-100 transition-colors duration-200;
 }
 
 .nav-link-active {
@@ -33,29 +33,48 @@ body {
 
 /* Формы */
 .input-field {
-  @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-chocolate focus:border-chocolate sm:text-sm;
+  @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-chocolate focus:border-chocolate sm:text-sm transition duration-200;
 }
 
 /* Анимации */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+  animation: fadeIn 0.5s ease-out forwards;
 }
 
-/* Стили для слайдера (потребуется JS) */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+/* Стили для слайдера */
 .slider-container {
   position: relative;
   width: 100%;
   overflow: hidden;
+  border-radius: 0.75rem; /* rounded-xl */
 }
 
 .slider-wrapper {
   display: flex;
-  transition: transform 0.5s ease-in-out;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* easeOutQuad */
 }
 
 .slider-slide {
@@ -79,10 +98,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease-in-out;
 }
 
 .slider-button:hover {
   background-color: rgba(107, 68, 35, 0.8);
+  transform: translateY(-50%) scale(1.1);
 }
 
 .slider-button-prev {
@@ -106,25 +127,65 @@ body {
   background-color: #ccc;
   margin: 0 5px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease-in-out;
 }
 
 .slider-dot.active {
   background-color: #6B4423;
+  transform: scale(1.2);
 }
 
 /* Модальные окна */
 .modal-overlay {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm;
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 .modal-content {
   @apply bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto;
+  animation: slideInDown 0.3s ease-out forwards;
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Скелетоны для загрузки */
+.skeleton {
+  @apply bg-gray-200 rounded animate-pulse;
+}
+
+/* Плавное появление для карточек товаров */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card-enter {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.product-card-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Плавное переключение шагов в конструкторе */
+.builder-step {
+  animation: fadeIn 0.4s ease-out;
 }
 
 /* Адаптивность */
 @media (max-width: 768px) {
   .product-grid {
     @apply grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+
+  .modal-content {
+    @apply max-w-xs;
   }
 }

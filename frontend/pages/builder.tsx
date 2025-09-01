@@ -65,6 +65,72 @@ const CakeBuilder: React.FC = () => {
     { id: 'comment', title: 'Комментарий' }
   ];
 
+  // Базовые цены (в реальном приложении будут браться из API)
+  const basePrices = {
+    cake: 1000, // Базовая цена торта
+    bento: 500, // Базовая цена бенто
+    cupcake: 100, // Цена за 1 капкейк
+    macaron: 50, // Цена за 1 макарон
+    pastry: 300, // Базовая цена пирожного
+    muffin: 200, // Базовая цена кекса
+  };
+
+  // Надбавки
+  const surcharges = {
+    tier: 500, // Надбавка за каждый дополнительный ярус
+    decoration: {
+      flowers: 300,
+      fruits: 200,
+      chocolate: 250,
+      berries: 150,
+      nuts: 100,
+      confetti: 50,
+      inscription: 200,
+      figurines: 400,
+    },
+    coating: {
+      cream: 0,
+      marzipan: 200,
+      glaze: 150,
+      chocolate: 300,
+      meringue: 100,
+    },
+  };
+
+  // Рассчитать стоимость
+  const calculatePrice = (): number => {
+    let price = basePrices[config.type as keyof typeof basePrices] || 1000;
+
+    // Цена за вес (пример)
+    const weightPrices: Record<string, number> = {
+      '0.5 кг': 0,
+      '1 кг': 0,
+      '1.5 кг': 500,
+      '2 кг': 1000,
+      '2.5 кг': 1500,
+      '3 кг': 2000,
+    };
+    price += weightPrices[config.weight] || 0;
+
+    // Надбавка за ярусы
+    if (config.tiers > 1) {
+      price += surcharges.tier * (config.tiers - 1);
+    }
+
+    // Надбавка за декор
+    const decorationPrice = surcharges.decoration[config.decoration as keyof typeof surcharges.decoration] || 0;
+    price += decorationPrice;
+
+    // Надбавка за покрытие
+    const coatingPrice = surcharges.coating[config.coating as keyof typeof surcharges.coating] || 0;
+    price += coatingPrice;
+
+    // Надбавка за начинки (пример: 100 руб. за каждую)
+    price += config.fillings.length * 100;
+
+    return price;
+  };
+
   const updateConfig = (field: keyof CakeConfig, value: any) => {
     setConfig(prev => ({ ...prev, [field]: value }));
   };
@@ -241,7 +307,210 @@ const CakeBuilder: React.FC = () => {
             </div>
           </div>
         );
-      // Для остальных шагов можно добавить подобную логику
+      case 'tiers':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Выберите количество ярусов</h3>
+            <div className="flex justify-center space-x-6 my-6">
+              {[1, 2, 3].map(tier => (
+                <button
+                  key={tier}
+                  onClick={() => updateConfig('tiers', tier)}
+                  className={`w-20 h-20 rounded-full border-4 flex items-center justify-center text-2xl font-bold transition ${
+                    config.tiers === tier
+                      ? 'border-chocolate bg-chocolate text-white'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  aria-label={`Выбрать ${tier} ярус${tier === 1 ? '' : tier === 2 ? 'а' : 'ов'}`}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
+            <div className="text-center text-gray-600">
+              {config.tiers === 1 && 'Один ярус - классический торт'}
+              {config.tiers === 2 && 'Два яруса - торжественный вид'}
+              {config.tiers === 3 && 'Три яруса - максимальный эффект'}
+            </div>
+          </div>
+        );
+      case 'decoration':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Выберите декор</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {[
+                { name: 'flowers', label: 'Цветы', icon: '🌸' },
+                { name: 'fruits', label: 'Фрукты', icon: '🍓' },
+                { name: 'chocolate', label: 'Шоколад', icon: '🍫' },
+                { name: 'berries', label: 'Ягоды', icon: '🫐' },
+                { name: 'nuts', label: 'Орехи', icon: '🥜' },
+                { name: 'confetti', label: 'Конфетти', icon: '🎉' },
+                { name: 'inscription', label: 'Надписи', icon: '✍️' },
+                { name: 'figurines', label: 'Фигурки', icon: '🧸' }
+              ].map(decoration => (
+                <button
+                  key={decoration.name}
+                  onClick={() => updateConfig('decoration', decoration.name)}
+                  className={`p-3 border rounded-lg text-center hover:border-chocolate transition flex flex-col items-center ${
+                    config.decoration === decoration.name ? 'border-chocolate bg-rose-50 font-bold' : 'border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{decoration.icon}</div>
+                  <div className="text-xs">{decoration.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 'coating':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Выберите покрытие</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { name: 'cream', label: 'Крем', description: 'Классический сливочный крем' },
+                { name: 'marzipan', label: 'Мастика', description: 'Гладкое покрытие для идеальных форм' },
+                { name: 'glaze', label: 'Глазурь', description: 'Блестящее зеркальное покрытие' },
+                { name: 'chocolate', label: 'Шоколад', description: 'Ганаш или темперированный шоколад' },
+                { name: 'meringue', label: 'Меренга', description: 'Воздушное итальянское покрытие' }
+              ].map(coating => (
+                <button
+                  key={coating.name}
+                  onClick={() => updateConfig('coating', coating.name)}
+                  className={`p-4 border rounded-lg text-left hover:border-chocolate transition ${
+                    config.coating === coating.name ? 'border-chocolate bg-rose-50 font-bold' : 'border-gray-300'
+                  }`}
+                >
+                  <div className="font-bold">{coating.label}</div>
+                  <div className="text-sm text-gray-600 mt-1">{coating.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 'colors':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Выберите цвета (до 2)</h3>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-9 gap-3">
+              {[
+                '#FF69B4', '#FF1493', '#FF6347', '#FF4500', '#FFD700', '#FFA500',
+                '#ADFF2F', '#32CD32', '#00FF7F', '#00CED1', '#1E90FF', '#4169E1',
+                '#8A2BE2', '#9370DB', '#FFB6C1', '#F5DEB3', '#FFFFFF', '#000000'
+              ].map(color => (
+                <div
+                  key={color}
+                  onClick={() => {
+                    const currentColors = [...config.colors];
+                    if (currentColors.includes(color)) {
+                      updateConfig('colors', currentColors.filter(c => c !== color));
+                    } else if (currentColors.length < 2) {
+                      updateConfig('colors', [...currentColors, color]);
+                    }
+                  }}
+                  className={`w-10 h-10 rounded-full border-2 cursor-pointer transition ${
+                    config.colors.includes(color) ? 'border-chocolate ring-2 ring-chocolate' : 'border-gray-300'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  aria-label={`Выбрать цвет ${color}`}
+                >
+                  {config.colors.includes(color) && (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-white text-lg">✓</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 text-sm text-gray-600">
+              Выбрано: {config.colors.length}/2 цвета
+            </div>
+          </div>
+        );
+      case 'date':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Выберите дату события</h3>
+            <div className="max-w-md mx-auto">
+              <input
+                type="date"
+                value={config.date}
+                onChange={(e) => updateConfig('date', e.target.value)}
+                min={new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} // Минимум за 3 дня
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-chocolate focus:border-chocolate"
+              />
+              <div className="mt-4 text-sm text-gray-600">
+                ⚠️ Заказ на дату менее чем за 3 дня возможен только по телефону
+              </div>
+            </div>
+          </div>
+        );
+      case 'sketch':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Загрузите эскиз (опционально)</h3>
+            <div className="max-w-md mx-auto border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              {config.sketch ? (
+                <div>
+                  <div className="text-green-600 mb-2">✓ Файл загружен</div>
+                  <div className="text-sm text-gray-600 truncate">{config.sketch.name}</div>
+                  <button
+                    onClick={() => updateConfig('sketch', null)}
+                    className="mt-2 text-red-500 hover:underline"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-4xl mb-4">📁</div>
+                  <p className="mb-4">Перетащите файл сюда или нажмите для выбора</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        // В реальном приложении здесь будет загрузка на сервер
+                        updateConfig('sketch', e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                    id="sketch-upload"
+                  />
+                  <label
+                    htmlFor="sketch-upload"
+                    className="btn-secondary cursor-pointer" // Убедитесь, что этот класс определен в globals.css
+                  >
+                    Выбрать файл
+                  </label>
+                  <div className="mt-2 text-sm text-gray-600">
+                    Поддерживаемые форматы: JPG, PNG, до 5 МБ
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      case 'comment':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-4">Добавьте комментарий к заказу</h3>
+            <div className="max-w-2xl mx-auto">
+              <textarea
+                value={config.comment}
+                onChange={(e) => updateConfig('comment', e.target.value)}
+                placeholder="Например: сделать надпись 'С Днем Рождения!' крупными буквами"
+                rows={5}
+                className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-chocolate focus:border-chocolate resize-none"
+                maxLength={500}
+              />
+              <div className="mt-2 text-sm text-gray-600 text-right">
+                {config.comment.length}/500 символов
+              </div>
+            </div>
+          </div>
+        );
       default:
         return (
           <div>
@@ -270,6 +539,7 @@ const CakeBuilder: React.FC = () => {
   };
 
   const currentIndex = steps.findIndex(s => s.id === currentStep);
+  const totalPrice = calculatePrice(); // Рассчитываем цену для отображения
 
   return (
     <div className="min-h-screen bg-cream py-8">
@@ -311,6 +581,16 @@ const CakeBuilder: React.FC = () => {
         {/* Контент шага */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
           {renderStepContent()}
+          {/* Отображение итоговой цены на каждом шаге (кроме первого) */}
+          {currentIndex > 0 && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-medium text-gray-700">Примерная стоимость:</span>
+                <span className="text-xl font-bold text-chocolate">{totalPrice.toLocaleString('ru-RU')} ₽</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">* Окончательная цена будет уточнена после обработки заказа.</p>
+            </div>
+          )}
         </div>
 
         {/* Навигация */}

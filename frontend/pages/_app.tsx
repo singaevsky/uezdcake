@@ -2,12 +2,9 @@
 import React from 'react';
 import type { AppProps } from 'next/app';
 import '../styles/globals.css';
-
-// Предполагаем, что все компоненты экспортируются по умолчанию
-// Если они экспортируются иначе, нужно изменить импорт
 import Navigation from '../components/Navigation';
-import Cart from '../components/Cart';
-import NotificationComponent from '../components/Notification';
+// Cart больше не импортируем и не рендерим здесь напрямую
+import NotificationComponent from '../components/Notification'; // Убедитесь, что в Notification.tsx есть экспорт по умолчанию
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -16,7 +13,7 @@ function MyApp({ Component, pageProps }: AppProps) {
       <main>
         <Component {...pageProps} />
       </main>
-      <Cart />
+      {/* Компонент уведомлений, если он полностью самостоятельный */}
       <NotificationComponent />
     </>
   );

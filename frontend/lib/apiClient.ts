@@ -35,9 +35,9 @@ class ApiClient {
       },
     };
 
-    // Добавляем тело запроса для POST/PUT/PATCH запросов
-    if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-      config.body = JSON.stringify(options.body);
+    // Преобразуем тело в JSON строку, если это объект
+    if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
+      config.body = JSON.stringify(config.body);
     }
 
     try {
@@ -82,14 +82,14 @@ class ApiClient {
   async login(credentials: { username: string; password: string }) {
     return this.request('/auth/login/', {
       method: 'POST',
-      body: credentials,
+      body: JSON.stringify(credentials),
     });
   }
 
   async register(userData: any) {
     return this.request('/auth/register/', {
       method: 'POST',
-      body: userData,
+      body: JSON.stringify(userData),
     });
   }
 
@@ -124,7 +124,7 @@ class ApiClient {
   async createOrder(orderData: any) {
     return this.request('/orders/', {
       method: 'POST',
-      body: orderData,
+      body: JSON.stringify(orderData),
     });
   }
 

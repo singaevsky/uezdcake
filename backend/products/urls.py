@@ -1,15 +1,31 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import ProductViewSet, FillingViewSet
-from . import views
+from django.http import JsonResponse
+from rest_framework import viewsets
+from .models import Product, Filling  # предположим, что такие модели существуют
+from .serializers import ProductSerializer, FillingSerializer  # если у вас есть соответствующие сериализаторы
 
-router = DefaultRouter()
-router.register(r'products', ProductViewSet)
-router.register(r'fillings', FillingViewSet)
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
 
-urlpatterns = [
-    path('', include(router.urls)),
-    path('list/', views.product_list, name='product_list'),
-    path('detail/<int:pk>/', views.product_detail, name='product_detail'),
-    path('categories/', views.category_list, name='category_list'),
-]
+class FillingViewSet(viewsets.ModelViewSet):
+    queryset = Filling.objects.all()
+    serializer_class = FillingSerializer
+
+def product_list(request):
+    # Пример реализации: возвращаем список продуктов в формате JSON
+    products = Product.objects.all().values()
+    return JsonResponse({"products": list(products)})
+
+def product_detail(request, pk):
+    # Пример реализации: возвращаем детали продукта
+    try:
+        product = Product.objects.values().get(pk=pk)
+        return JsonResponse({"product": product})
+    except Product.DoesNotExist:
+        return JsonResponse({"error": "Product not found"}, status=404)
+
+def category_list(request):
+    # Пример реализации: возвращаем список категорий
+    # Допустим, Product имеет поле category
+    categories = Product.objects.values_list('category', flat=True).distinct()
+    return JsonResponse({"categories": list(categories)})

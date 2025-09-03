@@ -1,95 +1,88 @@
-// frontend/components/ProductCard.tsx
 import React from 'react';
 import Link from 'next/link';
-import { useCart, CartItem } from './Cart'; // 1. Импортируем хук и тип
-
-interface Product {
-  id: number; // ID из API/базы данных
-  name: string;
-  price: number;
-  image: string;
-  description: string;
-  // Дополнительные поля, если нужны
-  weight_options?: { weight: string; price: number }[];
-  fillings?: string[];
-}
+import { useCart, CartItem, Product } from 'types/cart';
+import { v4 as uuidv4 } from 'uuid';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface ProductCardProps {
   product: Product;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addToCart } = useCart(); // 2. Получаем функцию addToCart из хука
+  const { addToCart } = useCart();
 
   const handleAddToCart = () => {
-    // 3. Создаем уникальный числовой ID для элемента корзины
-    // Date.now() возвращает миллисекунды, что обычно достаточно уникально
-    // для клиентской генерации ID в рамках одной сессии.
-    // Для продакшена лучше использовать более надежный UUID или ID от сервера.
-    const uniqueCartItemId: number = Date.now(); // Будет числом
-
-    // 4. Формируем объект товара для добавления в корзину в соответствии с типом CartItem
+    const uniqueCartItemId: string = uuidv4();
     const itemToAdd: Omit<CartItem, 'quantity'> = {
-      // 5. Используем сгенерированный числовой ID
-      id: uniqueCartItemId, // Теперь это number
-      productId: product.id, // Сохраняем оригинальный ID продукта
+      id: uniqueCartItemId,
+      productId: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      // customCakeConfig: {} // Оставляем пустым для стандартных товаров,
-                             // можно заполнять для товаров из конструктора
+      description: product.description,
+      category: product.category,
+      customCakeConfig: {},
     };
 
-    // 6. Вызываем функцию из хука
     addToCart(itemToAdd);
-    console.log(`Добавлен товар ${product.name} в корзину с ID элемента ${uniqueCartItemId}`);
-    // Здесь можно добавить уведомление пользователю, например, с помощью toast-сообщения
+    toast.success(`Добавлен товар "${product.name}" в корзину!`, {
+      style: {
+        background: '#FFF7ED',
+        color: '#4A2C2A',
+      },
+    });
   };
 
   return (
-    // 7. Используем классы из globals.css для стилизации
-    <div className="product-card fade-in">
+    <motion.div
+      className="bg-white rounded-xl shadow-md overflow-hidden"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       {product.image ? (
         <div className="w-full h-48 overflow-hidden">
           <img
             src={product.image}
-            alt={product.name} // Важно для доступности
-            className="w-full h-full object-cover transition duration-500 ease-in-out transform hover:scale-105"
-            // 8. Обработка ошибок загрузки изображения
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-500 ease-in-out hover:scale-105"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
-              target.src = '/images/placeholder-product.jpg'; // Убедитесь, что файл существует
+              target.src = '/images/placeholder-product.jpg';
             }}
           />
         </div>
       ) : (
-        // 9. Заглушка, если изображение отсутствует
         <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
           <span className="text-gray-500">Изображение отсутствует</span>
         </div>
       )}
       <div className="p-4">
         <h3 className="text-lg font-serif font-bold text-chocolate mb-1">{product.name}</h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
+        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description || 'Нет описания'}</p>
         <div className="flex justify-between items-center mt-3">
-          {/* 10. Форматирование цены */}
-          <span className="text-xl font-bold text-chocolate">от {product.price.toLocaleString('ru-RU')} ₽</span>
-          {/* 11. Используем класс btn-primary из globals.css и добавляем aria-label */}
+          <span className="text-xl font-bold text-chocolate">
+            от {product.price.toLocaleString('ru-RU')} ₽
+          </span>
           <button
             onClick={handleAddToCart}
-            // className="bg-gold hover:bg-opacity-90 text-chocolate text-sm font-bold py-1 px-3 rounded-full transition"
-            className="btn-primary text-sm py-1 px-3" // Используем общий класс стилей кнопки
+            className="bg-chocolate text-cream px-4 py-2 rounded-md hover:bg-dark-chocolate transition-colors"
             aria-label={`Добавить ${product.name} в корзину`}
           >
             В корзину
           </button>
         </div>
-        {/* 12. Ссылка на детальную страницу товара */}
-        <Link href={`/product/${product.id}`} className="text-mint hover:text-chocolate text-sm font-medium mt-2 inline-block">
+        <Link
+          href={product.id ? `/product/${product.id}` : '#'}
+          className={`text-mint hover:text-chocolate text-sm font-medium mt-2 inline-block ${
+            !product.id ? 'pointer-events-none opacity-50' : ''
+          }`}
+        >
           Подробнее →
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

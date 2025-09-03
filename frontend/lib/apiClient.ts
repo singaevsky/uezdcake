@@ -29,21 +29,21 @@ class ApiClient {
     const config: RequestInit = {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
-        ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+        // Не добавляем Content-Type для FormData, браузер установит его автоматически
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
         ...options.headers,
       },
     };
 
-    // Преобразуем тело в JSON строку, если это объект
+    // Преобразуем тело в JSON строку, если это объект и не FormData
     if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
       config.body = JSON.stringify(config.body);
     }
 
     try {
-      // Добавляем таймаут для запроса
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       config.signal = controller.signal;
 
@@ -56,15 +56,9 @@ class ApiClient {
         throw new Error(errorData.detail || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Проверяем, есть ли данные для парсинга
       const text = await response.text();
-      if (!text) {
-        return {};
-      }
-
-      return JSON.parse(text);
+      return text ? JSON.parse(text) : {};
     } catch (error: any) {
-      // Улучшенная обработка ошибок
       if (error.name === 'AbortError') {
         throw new Error('Превышено время ожидания запроса');
       }
@@ -131,6 +125,25 @@ class ApiClient {
   async getOrder(id: number) {
     return this.request(`/orders/${id}/`);
   }
+
+  // Builder methods
+  async getBuilderOptions() {
+    return this.request('/options/');
+  }
+
+  async uploadSketch(formData: FormData) {
+    return this.request('/builder/sketch/upload/', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async createCustomOrder(orderData: any) {
+    return this.request('/orders/custom/', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
 }
 
 // Create singleton instance
@@ -149,3 +162,6 @@ export const getCategories = apiClient.getCategories.bind(apiClient);
 export const getOrders = apiClient.getOrders.bind(apiClient);
 export const createOrder = apiClient.createOrder.bind(apiClient);
 export const getOrder = apiClient.getOrder.bind(apiClient);
+export const getBuilderOptions = apiClient.getBuilderOptions.bind(apiClient);
+export const uploadSketch = apiClient.uploadSketch.bind(apiClient);
+export const createCustomOrder = apiClient.createCustomOrder.bind(apiClient);

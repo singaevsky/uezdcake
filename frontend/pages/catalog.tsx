@@ -1,8 +1,9 @@
-// frontend/pages/catalog.tsx
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import ProductCard from '../components/ProductCard';
+import apiClient from '../lib/apiClient';
+import { useCart } from './index';
 
 interface Product {
   id: number;
@@ -10,7 +11,6 @@ interface Product {
   price: number;
   image: string;
   description: string;
-  // Добавим поля для фильтрации
   category?: string;
   weight_options?: { weight: string; price: number }[];
   fillings?: string[];
@@ -20,180 +20,173 @@ const CatalogPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     category: 'all',
     minPrice: 0,
     maxPrice: 5000,
     filling: 'all',
-    sortBy: 'popular'
+    sortBy: 'popular',
   });
 
-  // Имитация загрузки данных
-  useEffect(() => {
-    // В реальном приложении здесь будет API call
-    setTimeout(() => {
-      const mockProducts: Product[] = [
-        {
-          id: 1,
-          name: "Медовик",
-          price: 1200,
-          image: "/images/products/medovik.jpg",
-          description: "Классический медовый торт с нежным сливочным кремом",
-          category: "cakes",
-          weight_options: [
-            { weight: "1 кг", price: 1200 },
-            { weight: "2 кг", price: 2200 }
-          ],
-          fillings: ["Медовая", "Сливочный пломбир с ягодами"]
-        },
-        {
-          id: 2,
-          name: "Чёрный лес",
-          price: 1500,
-          image: "/images/products/cherny-les.jpg",
-          description: "Шоколадный бисквит с вишней и взбитыми сливками",
-          category: "cakes",
-          weight_options: [
-            { weight: "1 кг", price: 1500 },
-            { weight: "1.5 кг", price: 2100 }
-          ],
-          fillings: ["Шоколадная с арахисом и карамелью", "Вишня"]
-        },
-        {
-          id: 3,
-          name: "Три шоколада",
-          price: 1800,
-          image: "/images/products/tri-shokolada.jpg",
-          description: "Торт с тремя видами шоколада: горьким, молочным и белым",
-          category: "cakes",
-          weight_options: [
-            { weight: "1 кг", price: 1800 },
-            { weight: "2 кг", price: 3200 }
-          ],
-          fillings: ["Шоколадно-ванильная", "Шоколадный мусс"]
-        },
-        {
-          id: 4,
-          name: "Эстерхази",
-          price: 2200,
-          image: "/images/products/esterhazi.jpg",
-          description: "Венгерский торт с орехами и меренговым кремом",
-          category: "cakes",
-          weight_options: [
-            { weight: "1 кг", price: 2200 },
-            { weight: "1.5 кг", price: 3100 }
-          ],
-          fillings: ["Эстерхази"]
-        },
-        {
-          id: 5,
-          name: "Тирамису",
-          price: 1600,
-          image: "/images/products/tiramisu.jpg",
-          description: "Классический итальянский десерт с маскарпоне и кофе",
-          category: "desserts",
-          weight_options: [
-            { weight: "1 кг", price: 1600 }
-          ],
-          fillings: ["Кофе", "Маскарпоне"]
-        },
-        {
-          id: 6,
-          name: "Капкейки Ванильные",
-          price: 300,
-          image: "/images/products/cupcakes-vanilla.jpg",
-          description: "Нежные ванильные капкейки с кремом",
-          category: "cupcakes",
-          weight_options: [
-            { weight: "6 шт", price: 300 },
-            { weight: "12 шт", price: 550 }
-          ],
-          fillings: ["Ванильная"]
-        }
-      ];
-      setProducts(mockProducts);
-      setFilteredProducts(mockProducts);
+  // Функция для загрузки продуктов
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiClient.getProducts();
+      setProducts(Array.isArray(data) ? data : []);
+      setFilteredProducts(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      setError(err.message || 'Не удалось загрузить каталог');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  // Загрузка продуктов при монтировании
+  useEffect(() => {
+    fetchProducts();
   }, []);
 
-  // Применение фильтров (имитация)
+  // Фильтрация и сортировка продуктов
   useEffect(() => {
-    // В реальном приложении здесь будет логика фильтрации
-    setFilteredProducts(products);
+    let result = [...products];
+
+    // Фильтр по категории
+    if (filters.category !== 'all') {
+      result = result.filter((product) => product.category === filters.category);
+    }
+
+    // Фильтр по цене
+    result = result.filter(
+      (product) =>
+        product.price >= filters.minPrice && product.price <= filters.maxPrice
+    );
+
+    // Фильтр по начинкам
+    if (filters.filling !== 'all') {
+      result = result.filter((product) =>
+        product.fillings?.includes(filters.filling)
+      );
+    }
+
+    // Сортировка
+    switch (filters.sortBy) {
+      case 'price-low':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'name':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'popular':
+      default:
+        // Предполагаем, что популярность уже учтена в порядке от API
+        break;
+    }
+
+    setFilteredProducts(result);
   }, [filters, products]);
 
   const handleFilterChange = (filterName: string, value: string | number) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
   };
 
-  // Получение уникальных начинок для фильтра
+  // Получение уникальных начинок
   const getUniqueFillings = () => {
-    const allFillings = products.flatMap(p => p.fillings || []);
+    const allFillings = products.flatMap((p) => p.fillings || []);
     return Array.from(new Set(allFillings));
+  };
+
+  // Получение уникальных категорий
+  const getUniqueCategories = () => {
+    const allCategories = products.map((p) => p.category || 'other');
+    return Array.from(new Set(allCategories)).map((id) => ({
+      id,
+      name: id === 'other' ? 'Другое' : id.charAt(0).toUpperCase() + id.slice(1),
+    }));
   };
 
   return (
     <div className="min-h-screen bg-cream">
       <Head>
         <title>Каталог десертов - Уездный Кондитер</title>
-        <meta name="description" content="Широкий выбор тортов, десертов и выпечки от кондитерской 'Уездный Кондитер'" />
+        <meta
+          name="description"
+          content="Широкий выбор тортов, десертов и выпечки от кондитерской 'Уездный Кондитер'"
+        />
       </Head>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-serif font-bold text-chocolate mb-2">Каталог десертов</h1>
-          <p className="text-gray-600">Выберите идеальный десерт для вашего события</p>
+          <h1 className="text-3xl font-serif font-bold text-dark-chocolate mb-2">
+            Каталог десертов
+          </h1>
+          <p className="text-chocolate">
+            Выберите идеальный десерт для вашего события
+          </p>
         </div>
 
         <div className="flex flex-col md:flex-row gap-8">
           {/* Боковая панель фильтров */}
           <div className="md:w-1/4">
             <div className="bg-white p-6 rounded-xl shadow-md sticky top-24">
-              <h2 className="text-xl font-bold text-chocolate mb-4">Фильтры</h2>
+              <h2 className="text-xl font-bold text-dark-chocolate mb-4">
+                Фильтры
+              </h2>
 
               {/* Категории */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-2">Категория</h3>
+                <h3 className="font-semibold text-chocolate mb-2">Категория</h3>
                 <div className="space-y-2">
-                  {[
-                    { id: 'all', name: 'Все' },
-                    { id: 'cakes', name: 'Торты' },
-                    { id: 'desserts', name: 'Десерты' },
-                    { id: 'cupcakes', name: 'Капкейки' }
-                  ].map(category => (
-                    <label key={category.id} className="flex items-center">
-                      <input
-                        type="radio"
-                        name="category"
-                        value={category.id}
-                        checked={filters.category === category.id}
-                        onChange={() => handleFilterChange('category', category.id)}
-                        className="mr-2 text-chocolate"
-                      />
-                      {category.name}
-                    </label>
-                  ))}
+                  {[{ id: 'all', name: 'Все' }, ...getUniqueCategories()].map(
+                    (category) => (
+                      <label key={category.id} className="flex items-center">
+                        <input
+                          type="radio"
+                          name="category"
+                          value={category.id}
+                          checked={filters.category === category.id}
+                          onChange={() =>
+                            handleFilterChange('category', category.id)
+                          }
+                          className="mr-2 text-chocolate focus:ring-chocolate"
+                        />
+                        <span className="text-chocolate">{category.name}</span>
+                      </label>
+                    )
+                  )}
                 </div>
               </div>
 
               {/* Цена */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-2">Цена</h3>
+                <h3 className="font-semibold text-chocolate mb-2">Цена, ₽</h3>
                 <div className="flex items-center space-x-2">
                   <input
                     type="number"
                     value={filters.minPrice}
-                    onChange={(e) => handleFilterChange('minPrice', parseInt(e.target.value) || 0)}
-                    className="w-full p-2 border border-gray-300 rounded"
+                    onChange={(e) =>
+                      handleFilterChange('minPrice', parseInt(e.target.value) || 0)
+                    }
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-chocolate focus:border-chocolate"
                     placeholder="От"
                   />
-                  <span>-</span>
+                  <span className="text-chocolate">-</span>
                   <input
                     type="number"
                     value={filters.maxPrice}
-                    onChange={(e) => handleFilterChange('maxPrice', parseInt(e.target.value) || 5000)}
-                    className="w-full p-2 border border-gray-300 rounded"
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'maxPrice',
+                        parseInt(e.target.value) || 5000
+                      )
+                    }
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-chocolate focus:border-chocolate"
                     placeholder="До"
                   />
                 </div>
@@ -201,26 +194,30 @@ const CatalogPage: React.FC = () => {
 
               {/* Начинки */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-2">Начинки</h3>
+                <h3 className="font-semibold text-chocolate mb-2">Начинки</h3>
                 <select
                   value={filters.filling}
                   onChange={(e) => handleFilterChange('filling', e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-chocolate focus:border-chocolate"
                 >
                   <option value="all">Все начинки</option>
-                  {getUniqueFillings().map(filling => (
-                    <option key={filling} value={filling}>{filling}</option>
+                  {getUniqueFillings().map((filling) => (
+                    <option key={filling} value={filling}>
+                      {filling}
+                    </option>
                   ))}
                 </select>
               </div>
 
               {/* Сортировка */}
               <div>
-                <h3 className="font-semibold mb-2">Сортировать по</h3>
+                <h3 className="font-semibold text-chocolate mb-2">
+                  Сортировать по
+                </h3>
                 <select
                   value={filters.sortBy}
                   onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-chocolate focus:border-chocolate"
                 >
                   <option value="popular">Популярности</option>
                   <option value="price-low">Цене: по возрастанию</option>
@@ -233,10 +230,45 @@ const CatalogPage: React.FC = () => {
 
           {/* Список продуктов */}
           <div className="md:w-3/4">
-            {loading ? (
+            {error ? (
+              <div className="text-center py-12">
+                <div className="text-red-500 mb-4">
+                  <svg
+                    className="h-12 w-12 mx-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-dark-chocolate mb-2">
+                  Ошибка загрузки
+                </h3>
+                <p className="text-chocolate mb-4">{error}</p>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setLoading(true);
+                    fetchProducts(); // Исправлено: теперь fetchProducts доступна
+                  }}
+                  className="bg-chocolate text-cream px-4 py-2 rounded-md hover:bg-dark-chocolate transition-colors"
+                >
+                  Повторить попытку
+                </button>
+              </div>
+            ) : loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
+                  <div
+                    key={index}
+                    className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse"
+                  >
                     <div className="bg-gray-300 h-48 w-full"></div>
                     <div className="p-4">
                       <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
@@ -252,11 +284,11 @@ const CatalogPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="mb-4 text-gray-600">
+                <div className="mb-4 text-chocolate">
                   Найдено: {filteredProducts.length} товаров
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProducts.map(product => (
+                  {filteredProducts.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>

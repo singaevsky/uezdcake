@@ -1,169 +1,151 @@
-// frontend/lib/apiClient.ts
-// Клиент для взаимодействия с бэкенд API
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 class ApiClient {
   private baseUrl: string;
-  private defaultHeaders: HeadersInit;
+  private token: string | null;
 
-  constructor() {
-    // Базовый URL API, обычно берется из переменных окружения
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-    this.defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+    this.token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   }
 
-  // Установка токена авторизации
-  setAuthToken(token: string | null) {
-    if (token) {
-      this.defaultHeaders['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete this.defaultHeaders['Authorization'];
+  setToken(token: string) {
+    this.token = token;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', token);
     }
   }
 
-  // Универсальный метод для выполнения запросов
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  clearToken() {
+    this.token = null;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
+  }
+
+  private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+
     const config: RequestInit = {
       ...options,
       headers: {
-        ...this.defaultHeaders,
+        'Content-Type': 'application/json',
+        ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
         ...options.headers,
       },
     };
 
+    // Добавляем тело запроса для POST/PUT/PATCH запросов
+    if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+      config.body = JSON.stringify(options.body);
+    }
+
     try {
+      // Добавляем таймаут для запроса
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+
+      config.signal = controller.signal;
+
       const response = await fetch(url, config);
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        // Обработка ошибок HTTP
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail ||
-          errorData.message ||
-          `HTTP error! status: ${response.status}`
-        );
+        throw new Error(errorData.detail || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Для DELETE запросов, которые могут не возвращать тело
-      if (response.status === 204) {
-        return {} as T;
+      // Проверяем, есть ли данные для парсинга
+      const text = await response.text();
+      if (!text) {
+        return {};
       }
 
-      return await response.json();
-    } catch (error) {
-      console.error(`API request failed: ${url}`, error);
+      return JSON.parse(text);
+    } catch (error: any) {
+      // Улучшенная обработка ошибок
+      if (error.name === 'AbortError') {
+        throw new Error('Превышено время ожидания запроса');
+      }
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Не удалось подключиться к серверу. Проверьте, запущен ли бэкенд.');
+      }
+
+      console.error('API Error:', error);
       throw error;
     }
   }
 
-  // GET запрос
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
-  }
-
-  // POST запрос
-  async post<T>(endpoint: string, data: any): Promise<T> {
-    return this.request<T>(endpoint, {
+  // Auth methods
+  async login(credentials: { username: string; password: string }) {
+    return this.request('/auth/login/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: credentials,
     });
   }
 
-  // PUT запрос
-  async put<T>(endpoint: string, data: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+  async register(userData: any) {
+    return this.request('/auth/register/', {
+      method: 'POST',
+      body: userData,
     });
   }
 
-  // PATCH запрос
-  async patch<T>(endpoint: string, data: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+  async logout() {
+    return this.request('/auth/logout/', {
+      method: 'POST',
     });
   }
 
-  // DELETE запрос
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  async getProfile() {
+    return this.request('/auth/profile/');
   }
 
-  // Специфичные методы для приложения
-
-  // Получение списка продуктов
-  async getProducts(params: Record<string, string> = {}): Promise<any> {
-    const queryParams = new URLSearchParams(params).toString();
-    const url = queryParams ? `/products/?${queryParams}` : '/products/';
-    return this.get(url);
+  // Product methods
+  async getProducts() {
+    return this.request('/products/');
   }
 
-  // Получение одного продукта
-  async getProduct(id: number): Promise<any> {
-    return this.get(`/products/${id}/`);
+  async getProduct(id: number) {
+    return this.request(`/products/${id}/`);
   }
 
-  // Получение начинок
-  async getFillings(): Promise<any> {
-    return this.get('/fillings/');
+  async getCategories() {
+    return this.request('/products/categories/');
   }
 
-  // Регистрация пользователя
-  async register(userData: { username: string; email: string; password: string }): Promise<any> {
-    return this.post('/auth/register/', userData);
+  // Order methods
+  async getOrders() {
+    return this.request('/orders/');
   }
 
-  // Вход пользователя
-  async login(credentials: { username: string; password: string }): Promise<any> {
-    return this.post('/auth/login/', credentials);
+  async createOrder(orderData: any) {
+    return this.request('/orders/', {
+      method: 'POST',
+      body: orderData,
+    });
   }
 
-  // Выход пользователя
-  async logout(refreshToken: string): Promise<any> {
-    return this.post('/auth/logout/', { refresh_token: refreshToken });
-  }
-
-  // Получение профиля пользователя
-  async getProfile(): Promise<any> {
-    return this.get('/auth/profile/');
-  }
-
-  // Обновление профиля пользователя
-  async updateProfile(profileData: any): Promise<any> {
-    return this.put('/auth/profile/update/', profileData);
-  }
-
-  // Создание заказа
-  async createOrder(orderData: any): Promise<any> {
-    return this.post('/orders/', orderData);
-  }
-
-  // Получение заказов пользователя
-  async getUserOrders(): Promise<any> {
-    return this.get('/orders/my/');
-  }
-
-  // Отправка токена уведомлений
-  async sendNotificationToken(token: string): Promise<any> {
-    return this.post('/users/notification-token/', { token });
+  async getOrder(id: number) {
+    return this.request(`/orders/${id}/`);
   }
 }
 
-// Экземпляр клиента для использования в приложении
-const apiClient = new ApiClient();
-
-// Установим токен авторизации, если он есть в localStorage
-if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    apiClient.setAuthToken(token);
-  }
-}
+// Create singleton instance
+const apiClient = new ApiClient(API_BASE_URL);
 
 export default apiClient;
+
+// Export individual methods for convenience
+export const login = apiClient.login.bind(apiClient);
+export const register = apiClient.register.bind(apiClient);
+export const logout = apiClient.logout.bind(apiClient);
+export const getProfile = apiClient.getProfile.bind(apiClient);
+export const getProducts = apiClient.getProducts.bind(apiClient);
+export const getProduct = apiClient.getProduct.bind(apiClient);
+export const getCategories = apiClient.getCategories.bind(apiClient);
+export const getOrders = apiClient.getOrders.bind(apiClient);
+export const createOrder = apiClient.createOrder.bind(apiClient);
+export const getOrder = apiClient.getOrder.bind(apiClient);

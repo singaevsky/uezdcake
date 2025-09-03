@@ -1,11 +1,9 @@
-// frontend/lib/auth.ts
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios'; // Импортируем типы для лучшей типизации
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // Определим базовый URL API
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // Интерфейсы для типизации данных
-// Добавляем date_joined как опциональное поле
 interface User {
   id: number;
   username: string;
@@ -15,13 +13,7 @@ interface User {
   role: string;
   phone?: string;
   bonus_points?: number;
-  // Добавлено поле, которого не хватало. Сделано опциональным.
   date_joined?: string;
-  // Можно добавить и другие потенциальные поля из Django User, если они есть в API
-  // last_login?: string;
-  // is_active?: boolean;
-  // created_at?: string; // Альтернативное имя
-  // Добавьте другие поля, если они есть в вашем API
 }
 
 interface LoginData {
@@ -44,8 +36,8 @@ interface AuthResponse {
   user: User;
 }
 
-// Экспортируемый объект с методами аутентификации
-export const authAPI = {
+// Создаем объект с методами аутентификации
+const authAPI = {
   // Логин
   async login(data: LoginData): Promise<AuthResponse> {
     try {
@@ -127,12 +119,12 @@ export const authAPI = {
       return response.data.access;
     } catch (error: any) {
       console.error('Ошибка обновления токена:', error);
-      this.logout(); // Если не удалось обновить, выходим
+      this.logout();
       throw error;
     }
   },
 
-  // Обновление профиля пользователя (если API поддерживает)
+  // Обновление профиля пользователя
   async updateProfile(profileData: Partial<User>): Promise<User> {
     try {
       const config: AxiosRequestConfig = {
@@ -141,7 +133,6 @@ export const authAPI = {
         }
       };
       const response: AxiosResponse<User> = await axios.put<User>(`${API_URL}/auth/profile/`, profileData, config);
-      // Обновляем пользователя в localStorage
       localStorage.setItem('user', JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
@@ -156,7 +147,7 @@ axios.interceptors.request.use(
   (config) => {
     const token = authAPI.getAccessToken();
     if (token && config.headers) {
-      config.headers['Authorization'] = `Bearer ${token}`; // Используем скобочную нотацию
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -171,32 +162,21 @@ axios.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Проверяем, что ошибка 401, запрос существует и еще не был повторен
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true; // Помечаем, что запрос будет повторен
+      originalRequest._retry = true;
 
       try {
-        // Пытаемся обновить токен
         const newAccessToken = await authAPI.refreshAccessToken();
         if (newAccessToken) {
-          // Если токен обновлен, повторяем оригинальный запрос с новым токеном
-          // Улучшаем проверку существования headers
           if (originalRequest.headers) {
-             originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+            originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
           }
           return axios(originalRequest);
         }
       } catch (refreshError) {
-        // Если обновление не удалось, выходим и перенаправляем на логин
         console.error('Не удалось обновить токен, выход из системы:', refreshError);
         authAPI.logout();
-        if (typeof window !== 'undefined') {
-          // window.location.href = '/login'; // Перенаправление на страницу логина
-          // Или лучше использовать роутер Next.js, если это возможно в контексте вызова
-        }
-        // return Promise.reject(refreshError); // Просто пробрасываем ошибку обновления
-         // Или возвращаем оригинальную ошибку 401
-         return Promise.reject(error);
+        return Promise.reject(error);
       }
     }
 
@@ -204,4 +184,8 @@ axios.interceptors.response.use(
   }
 );
 
+// Экспортируем только по умолчанию
 export default authAPI;
+
+// Экспортируем типы отдельно
+export type { User, LoginData, RegisterData, AuthResponse };

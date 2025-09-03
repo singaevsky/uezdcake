@@ -1,20 +1,15 @@
-# frontend/Dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Копирование package.json и установка зависимостей
+# Установка зависимостей для сборки
+RUN apk add --no-cache libc6-compat
+
 COPY package*.json ./
 RUN npm ci
 
-# Копирование исходного кода
 COPY . .
 
-# Сборка приложения
-RUN npm run build
-
-# Открытие порта
 EXPOSE 3000
 
-# Команда запуска
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

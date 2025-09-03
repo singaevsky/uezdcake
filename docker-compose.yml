@@ -1,4 +1,3 @@
-# docker-compose.yml
 version: '3.8'
 
 services:
@@ -30,8 +29,8 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
-    build: .
+  backend:
+    build: ./backend
     ports:
       - "8000:8000"
     environment:
@@ -39,13 +38,17 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - DEBUG=True
       - SECRET_KEY=your-local-secret-key
+      - DB_HOST=db
+      - DB_NAME=konditer_db
+      - DB_USER=singaevsk2
+      - DB_PASSWORD=Fylhtq2107
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
-      - .:/app
+      - ./backend:/app
       - /app/staticfiles
     command: >
       sh -c "python manage.py migrate &&
@@ -65,7 +68,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - web
+      - backend
 
 volumes:
   postgres_data:
